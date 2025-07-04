@@ -145,26 +145,25 @@ class ContainerHandler(LinuxHandler):
             
     def _configure_vlan_network(self, config: NetworkConfig) -> CommandResult:
         """Configure VLAN network for container"""
-        # First, ensure vlan module is loaded
-        self.execute_command("modprobe 8021q", as_admin=True)
+        # First, ensure vlan module is loaded (containers are privileged)
+        self.execute_command("modprobe 8021q")
         
         # Create VLAN interface
         vlan_iface = f"{config.interface}.{config.vlan_id}"
         
         # Remove existing VLAN interface if exists
-        self.execute_command(f"ip link delete {vlan_iface}", as_admin=True)
+        self.execute_command(f"ip link delete {vlan_iface}")
         
         # Create new VLAN interface
         result = self.execute_command(
-            f"ip link add link {config.interface} name {vlan_iface} type vlan id {config.vlan_id}",
-            as_admin=True
+            f"ip link add link {config.interface} name {vlan_iface} type vlan id {config.vlan_id}"
         )
         
         if not result.success:
             return result
             
         # Bring up the VLAN interface
-        result = self.execute_command(f"ip link set {vlan_iface} up", as_admin=True)
+        result = self.execute_command(f"ip link set {vlan_iface} up")
         
         if not result.success:
             return result
@@ -173,8 +172,7 @@ class ContainerHandler(LinuxHandler):
         if not config.dhcp:
             prefix = self._netmask_to_prefix(config.netmask) if config.netmask else 24
             result = self.execute_command(
-                f"ip addr add {config.ip_address}/{prefix} dev {vlan_iface}",
-                as_admin=True
+                f"ip addr add {config.ip_address}/{prefix} dev {vlan_iface}"
             )
             
             if not result.success:
@@ -183,18 +181,17 @@ class ContainerHandler(LinuxHandler):
             # Add default route if gateway specified
             if config.gateway:
                 # Remove existing default routes
-                self.execute_command("ip route del default", as_admin=True)
+                self.execute_command("ip route del default")
                 
                 # Add new default route
                 result = self.execute_command(
-                    f"ip route add default via {config.gateway} dev {vlan_iface}",
-                    as_admin=True
+                    f"ip route add default via {config.gateway} dev {vlan_iface}"
                 )
                 
         # Configure DNS if specified
         if config.dns_servers:
             dns_config = "\n".join(f"nameserver {dns}" for dns in config.dns_servers)
-            self.execute_command(f"echo '{dns_config}' > /etc/resolv.conf", as_admin=True)
+            self.execute_command(f"echo '{dns_config}' > /etc/resolv.conf")
             
         return CommandResult(
             stdout=f"VLAN {config.vlan_id} configured on {config.interface}",
@@ -202,6 +199,32 @@ class ContainerHandler(LinuxHandler):
             exit_code=0,
             success=True,
             command="configure_vlan_network",
+            duration=0
+        )
+        
+    def install_package(self, package_name: str) -> CommandResult:
+        """Install a package using the appropriate package manager (privileged containers)"""
+        # Detect package manager
+        pkg_managers = [
+            ('apt-get', 'apt-get update && apt-get install -y'),  # Debian, Ubuntu
+            ('dnf', 'dnf install -y'),      # Fedora, RHEL 8+, Rocky 9
+            ('yum', 'yum install -y'),      # RHEL 7, CentOS
+            ('zypper', 'zypper install -y'),    # openSUSE
+            ('pacman', 'pacman -S --noconfirm') # Arch
+        ]
+        
+        for manager, install_cmd in pkg_managers:
+            result = self.execute_command(f"which {manager}")
+            if result.success:
+                # No as_admin needed for privileged containers
+                return self.execute_command(f"{install_cmd} {package_name}")
+                
+        return CommandResult(
+            stdout="",
+            stderr="No supported package manager found",
+            exit_code=1,
+            success=False,
+            command=f"install {package_name}",
             duration=0
         )
         
@@ -215,22 +238,21 @@ class ContainerHandler(LinuxHandler):
         self.install_package("bridge-utils")
         
         # Create bridge
-        self.execute_command(f"brctl addbr {bridge_name}", as_admin=True)
+        self.execute_command(f"brctl addbr {bridge_name}")
         
         # Create VLAN interface
         vlan_iface = f"{physical_interface}.{vlan_id}"
         result = self.execute_command(
-            f"ip link add link {physical_interface} name {vlan_iface} type vlan id {vlan_id}",
-            as_admin=True
+            f"ip link add link {physical_interface} name {vlan_iface} type vlan id {vlan_id}"
         )
         
         if result.success:
             # Add VLAN interface to bridge
-            self.execute_command(f"brctl addif {bridge_name} {vlan_iface}", as_admin=True)
+            self.execute_command(f"brctl addif {bridge_name} {vlan_iface}")
             
             # Bring up bridge and VLAN interface
-            self.execute_command(f"ip link set {bridge_name} up", as_admin=True)
-            self.execute_command(f"ip link set {vlan_iface} up", as_admin=True)
+            self.execute_command(f"ip link set {bridge_name} up")
+            self.execute_command(f"ip link set {vlan_iface} up")
             
         return result
         

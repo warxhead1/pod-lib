@@ -1,0 +1,30 @@
+{
+  "test_summary": {
+    "total_containers_requested": 4,
+    "successful_deployments": 4,
+    "deployment_success_rate": 100.0,
+    "total_network_tests": 6,
+    "successful_network_tests": 2,
+    "failed_network_tests": 4
+  },
+  "performance_metrics": {
+    "deployment_time": 60.77924942970276,
+    "containers_per_second": 0.06581193478913222,
+    "average_startup_time": 0.3700180649757385,
+    "average_network_config_time": 0.6946172714233398
+  },
+  "network_performance": {
+    "cross_vlan_tests": 0,
+    "same_vlan_tests": 2,
+    "average_throughput_mbps": 26989.152520846492,
+    "max_throughput_mbps": 27196.71200864785,
+    "min_throughput_mbps": 26781.593033045134
+  },
+  "detailed_results": {
+    "container_details": [
+      {
+        "name": "pod-test-000",
+        "vlan_id": 100,
+        "ip_address": "192.168.100.10",
+        "port": 5000,
+        "connection": 

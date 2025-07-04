@@ -1,0 +1,119 @@
+scenarios:
+  - name: "basic_capacity_test"
+    description: "Test basic container deployment and connectivity"
+    endpoints:
+      - name: "vlan100-endpoint1"
+        vlan_id: 100
+        ip_address: "192.168.100.10"
+        role: "client"
+        tools: ["iproute", "iputils", "iperf3"]
+        test_commands:
+          - "init:echo 'Client endpoint initialized'"
+      
+      - name: "vlan100-endpoint2"
+        vlan_id: 100
+        ip_address: "192.168.100.20"
+        role: "server"
+        tools: ["iproute", "iputils", "iperf3", "netcat"]
+        test_commands:
+          - "init:echo 'Server endpoint initialized'"
+      
+      - name: "vlan200-endpoint1"
+        vlan_id: 200
+        ip_address: "192.168.200.10"
+        role: "client"
+        tools: ["iproute", "iputils", "iperf3"]
+        test_commands: []
+    
+    test_matrix:
+      - source: "vlan100-endpoint1"
+        target: "vlan100-endpoint2"
+        type: "bandwidth"
+        expected: "should_pass"
+      
+      - source: "vlan100-endpoint1"
+        target: "vlan200-endpoint1"
+        type: "ping"
+        expected: "should_fail"  # Different VLANs should be isolated
+    
+    expected_results:
+      vlan_isolation: true
+      intra_vlan_communication: true
+
+  - name: "vlan_isolation_test"
+    description: "Comprehensive VLAN isolation testing across multiple segments"
+    endpoints:
+      - name: "management-vlan"
+        vlan_id: 10
+        ip_address: "192.168.10.100"
+        role: "monitor"
+        tools: ["iproute", "iputils", "tcpdump", "netcat"]
+        test_commands:
+          - "init:echo 'Management VLAN monitor ready'"
+      
+      - name: "production-client"
+        vlan_id: 100
+        ip_address: "192.168.100.50"
+        role: "client"
+        tools: ["iproute", "iputils", "iperf3"]
+        test_commands:
+          - "init:echo 'Production client ready'"
+      
+      - name: "production-server"
+        vlan_id: 100
+        ip_address: "192.168.100.100"
+        role: "server"
+        tools: ["iproute", "iputils", "iperf3", "netcat"]
+        test_commands:
+          - "init:echo 'Production server ready'"
+      
+      - name: "development-client"
+        vlan_id: 200
+        ip_address: "192.168.200.50"
+        role: "client"
+        tools: ["iproute", "iputils", "iperf3"]
+        test_commands:
+          - "init:echo 'Development client ready'"
+      
+      - name: "guest-client"
+        vlan_id: 300
+        ip_address: "192.168.300.50"
+        role: "client"
+        tools: ["iproute", "iputils"]
+        test_commands:
+          - "init:echo 'Guest network client ready'"
+    
+    test_matrix:
+      # Test production VLAN internal communication (should work)
+      - source: "production-client"
+        target: "production-server"
+        type: "bandwidth"
+        expected: "should_pass"
+      
+      # Test VLAN isolation (should fail)
+      - source: "production-client"
+        target: "development-client"
+        type: "ping"
+        expected: "should_fail"
+      
+      - source: "production-client"
+        target: "guest-client"
+        type: "ping"
+        expected: "should_fail"
+      
+      - source: "development-client"
+        target: "guest-client"
+        type: "ping"
+        expected: "should_fail"
+      
+      # Management VLAN might have different access rules
+      - source: "management-vlan"
+        target: "production-server"
+        type: "ping"
+        expected: "should_pass"  # Management typically can reach production
+    
+    expected_results:
+      production_vlan_isolated: true
+      development_vlan_isolated: true
+      guest_vlan_isolated: true
+      management_access: true
