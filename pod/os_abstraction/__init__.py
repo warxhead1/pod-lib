@@ -6,6 +6,7 @@ from .base import BaseOSHandler, CommandResult, NetworkInterface, NetworkConfig
 from .linux import LinuxHandler
 from .windows import WindowsHandler
 from .container import ContainerHandler, ContainerConnection
+from .kubernetes import KubernetesHandler
 from .factory import OSHandlerFactory
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     'WindowsHandler',
     'ContainerHandler',
     'ContainerConnection',
+    'KubernetesHandler',
     'OSHandlerFactory'
 ]

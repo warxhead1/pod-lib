@@ -38,3 +38,13 @@ class AuthenticationError(PODError):
 class TimeoutError(PODError):
     """Operation timeout"""
     pass
+
+
+class CommandExecutionError(PODError):
+    """Command execution failure"""
+    pass
+
+
+class ProviderError(PODError):
+    """Infrastructure provider errors"""
+    pass

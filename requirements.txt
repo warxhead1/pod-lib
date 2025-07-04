@@ -12,6 +12,12 @@ pywinrm>=0.4.3
 # Container management (for Rocky Linux containers)
 docker>=6.0.0
 
+# Kubernetes integration
+kubernetes>=28.0.0  # Official Python Kubernetes client
+kubernetes-asyncio>=28.0.0  # Async support for K8s operations
+kopf>=1.37.0  # Kubernetes Operator Framework (for advanced automation)
+pykube-ng>=22.9.0  # Alternative lightweight K8s client
+
 # Data validation and configuration
 pydantic>=2.0.0
 
