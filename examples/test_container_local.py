@@ -7,7 +7,7 @@ This can run on your local machine with Docker installed
 import os
 import sys
 import time
-import subprocess
+import subprocess  # nosec B404
 import docker
 
 # Add POD to path
@@ -24,7 +24,7 @@ def run_command(cmd):
         cmd_list = shlex.split(cmd)
     else:
         cmd_list = cmd
-    result = subprocess.run(cmd_list, capture_output=True, text=True)
+    result = subprocess.run(cmd_list, capture_output=True, text=True)  # nosec B603
     return result.returncode == 0, result.stdout, result.stderr
 
 
@@ -212,8 +212,9 @@ def test_local_containers():
             try:
                 container.stop()
                 container.remove()
-            except:
-                pass
+            except Exception as e:
+                # Container may already be stopped/removed or have dependencies
+                print(f"   Warning: Could not remove container {container.name}: {e}")
         print("✓ Cleanup complete")
         
     return True

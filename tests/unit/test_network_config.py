@@ -261,9 +261,9 @@ class TestNetworkConfigurator:
     def test_get_next_adapter_number_with_existing(self, mock_vsphere_client, mock_vm, mock_network_adapter):
         """Test getting next adapter number with existing adapters"""
         # Create additional adapters
-        from tests.mocks.vsphere.network_adapters import MockVirtualVmxnet3
-        adapter2 = MockVirtualVmxnet3(4001, "Network adapter 2")
-        adapter3 = MockVirtualVmxnet3(4002, "Network adapter 3")
+        from tests.mocks.vsphere.network_adapters import create_mock_vmxnet3
+        adapter2 = create_mock_vmxnet3(4001, "Network adapter 2")
+        adapter3 = create_mock_vmxnet3(4002, "Network adapter 3")
         
         mock_vm.config.hardware.device = [mock_network_adapter, adapter2, adapter3]
         
@@ -274,8 +274,8 @@ class TestNetworkConfigurator:
 
     def test_get_next_adapter_number_invalid_label(self, mock_vsphere_client, mock_vm):
         """Test getting next adapter number with invalid label"""
-        from tests.mocks.vsphere.network_adapters import MockVirtualVmxnet3
-        adapter = MockVirtualVmxnet3(4000, "Invalid adapter name")
+        from tests.mocks.vsphere.network_adapters import create_mock_vmxnet3
+        adapter = create_mock_vmxnet3(4000, "Invalid adapter name")
         mock_vm.config.hardware.device = [adapter]
         
         configurator = NetworkConfigurator(mock_vsphere_client)

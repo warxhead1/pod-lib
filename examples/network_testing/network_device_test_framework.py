@@ -269,8 +269,9 @@ class NetworkDeviceTestFramework:
             # Clean up server process
             try:
                 server.handler.execute_command("pkill iperf3")
-            except:
-                pass
+            except Exception as e:
+                # Cleanup operation - iperf3 may not be running
+                self.logger.debug(f"Could not kill iperf3 processes: {e}")
     
     def run_scenario_tests(self, scenario: NetworkTestScenario) -> Dict[str, Any]:
         """Run all tests defined in a scenario"""
@@ -341,7 +342,7 @@ class NetworkDeviceTestFramework:
                     endpoint.connection.disconnect()
                 
                 import subprocess  # nosec B404
-                subprocess.run(["docker", "rm", "-f", endpoint.name],  # nosec B603 
+                subprocess.run(["docker", "rm", "-f", endpoint.name],  # nosec B603 B607 
                              capture_output=True)
                 self.logger.info(f"Cleaned up container: {endpoint.name}")
             except Exception as e:

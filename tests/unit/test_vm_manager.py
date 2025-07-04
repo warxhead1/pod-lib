@@ -251,7 +251,10 @@ class TestVMManager:
         mock_source_vm = Mock()
         mock_datacenter = Mock()
         mock_datacenter.vmFolder = Mock()
-        mock_resource_pool = Mock()
+        
+        # Use typed mock for resource pool
+        from tests.mocks.vsphere.device_specs import create_mock_resource_pool
+        mock_resource_pool = create_mock_resource_pool()
         mock_task = Mock()
         
         mock_vsphere_client.get_vm.side_effect = [mock_source_vm, mock_vm]
@@ -298,11 +301,9 @@ class TestVMManager:
 
     def test_get_disk_info(self, mock_vsphere_client, mock_vm):
         """Test getting disk information"""
-        # Mock disk device
-        mock_disk = Mock()  # Remove spec to avoid MagicMock type conflict
-        mock_disk.deviceInfo.label = "Hard disk 1"
-        mock_disk.capacityInKB = 20971520  # 20GB
-        mock_disk.backing.thinProvisioned = True
+        # Use typed mock for disk device
+        from tests.mocks.vsphere.device_specs import create_mock_virtual_disk
+        mock_disk = create_mock_virtual_disk("Hard disk 1", 20971520, True)
         mock_vm.config.hardware.device = [mock_disk]
         
         manager = VMManager(mock_vsphere_client)

@@ -73,8 +73,10 @@ class BaseConnection(ABC):
                 self.connect()
                 if self.is_connected():
                     return
-            except Exception:
-                pass
+            except Exception as e:
+                # Connection check failed, will retry after delay
+                import logging
+                logging.debug(f"Connection check failed during reboot wait: {e}")
             time.sleep(5)
             
         raise TimeoutError(f"System did not come back up within {timeout} seconds")

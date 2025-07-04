@@ -69,8 +69,8 @@ def mock_vm():
 @pytest.fixture
 def mock_network():
     """Mock vSphere network object"""
-    from tests.mocks.vsphere import MockNetwork
-    network = MockNetwork("test-network")
+    from tests.mocks.vsphere.networks import create_mock_network
+    network = create_mock_network("test-network")
     network.key = "network-key-123"
     return network
 
@@ -78,8 +78,8 @@ def mock_network():
 @pytest.fixture
 def mock_dvs_portgroup():
     """Mock DVS portgroup"""
-    from tests.mocks.vsphere import MockDistributedVirtualPortgroup
-    portgroup = MockDistributedVirtualPortgroup("test-portgroup", "dvs-uuid-123")
+    from tests.mocks.vsphere.networks import create_mock_dvs_portgroup
+    portgroup = create_mock_dvs_portgroup("test-portgroup", "dvs-uuid-123")
     portgroup.key = "pg-key-123"
     return portgroup
 
@@ -87,10 +87,10 @@ def mock_dvs_portgroup():
 @pytest.fixture
 def mock_network_adapter():
     """Mock network adapter"""
-    from tests.mocks.vsphere import MockVirtualVmxnet3
+    from tests.mocks.vsphere.network_adapters import create_mock_vmxnet3
     from tests.mocks.vsphere.network_backing import MockVirtualEthernetCardNetworkBackingInfo
     
-    adapter = MockVirtualVmxnet3(4000, "Network adapter 1")
+    adapter = create_mock_vmxnet3(4000, "Network adapter 1")
     adapter.macAddress = "00:50:56:12:34:56"
     adapter.backing = MockVirtualEthernetCardNetworkBackingInfo("VM Network")
     return adapter

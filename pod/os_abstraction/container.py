@@ -37,7 +37,7 @@ class ContainerConnection(BaseConnection):
         try:
             # Check if container exists and is running
             cmd = [self.command_prefix, "inspect", self.container_id]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603
             
             if result.returncode == 0:
                 container_info = json.loads(result.stdout)
@@ -50,7 +50,7 @@ class ContainerConnection(BaseConnection):
                 else:
                     # Try to start the container
                     cmd = [self.command_prefix, "start", self.container_id]
-                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603
                     if result.returncode == 0:
                         self._connected = True
                     else:
@@ -72,7 +72,7 @@ class ContainerConnection(BaseConnection):
             
         # Verify container is still running
         cmd = [self.command_prefix, "inspect", self.container_id, "--format={{.State.Running}}"]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True) # nosec B603
         
         return result.returncode == 0 and result.stdout.strip() == 'true'
         
@@ -85,7 +85,7 @@ class ContainerConnection(BaseConnection):
         exec_cmd = [self.command_prefix, "exec", self.container_id, "/bin/bash", "-c", command]
         
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603
                 exec_cmd,
                 capture_output=True,
                 text=True,
@@ -100,13 +100,13 @@ class ContainerConnection(BaseConnection):
     def upload_file(self, local_path: str, remote_path: str) -> bool:
         """Upload file to container"""
         cmd = [self.command_prefix, "cp", local_path, f"{self.container_id}:{remote_path}"]
-        result = subprocess.run(cmd, capture_output=True)
+        result = subprocess.run(cmd, capture_output=True)  # nosec B603
         return result.returncode == 0
         
     def download_file(self, remote_path: str, local_path: str) -> bool:
         """Download file from container"""
         cmd = [self.command_prefix, "cp", f"{self.container_id}:{remote_path}", local_path]
-        result = subprocess.run(cmd, capture_output=True)
+        result = subprocess.run(cmd, capture_output=True)  # nosec B603
         return result.returncode == 0
 
 
@@ -294,7 +294,7 @@ class ContainerHandler(LinuxHandler):
         if isinstance(self.connection, ContainerConnection):
             # Get container info from host
             cmd = [self.connection.command_prefix, "inspect", self.connection.container_id]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603
             
             if result.returncode == 0:
                 try:

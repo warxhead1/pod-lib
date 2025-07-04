@@ -34,7 +34,9 @@ class TestContainerConnection:
         
         assert container_connection._connected is True
         mock_run.assert_called_once()
-        assert "docker inspect test-container" in mock_run.call_args[0][0]
+        # Check that subprocess was called with list arguments for security
+        called_args = mock_run.call_args[0][0]
+        assert called_args == ["docker", "inspect", "test-container"]
     
     @patch('subprocess.run')
     def test_connect_stopped_container(self, mock_run, container_connection):
@@ -50,7 +52,9 @@ class TestContainerConnection:
         
         assert container_connection._connected is True
         assert mock_run.call_count == 2
-        assert "docker start test-container" in mock_run.call_args_list[1][0][0]
+        # Check that start command was called with list arguments  
+        start_call_args = mock_run.call_args_list[1][0][0]
+        assert start_call_args == ["docker", "start", "test-container"]
     
     @patch('subprocess.run')
     def test_execute_command(self, mock_run, container_connection):
@@ -69,7 +73,9 @@ class TestContainerConnection:
         assert stdout == "command output"
         assert stderr == ""
         assert code == 0
-        assert "docker exec test-container /bin/bash -c 'ls -la'" in mock_run.call_args[0][0]
+        # Check that exec command was called with list arguments
+        exec_call_args = mock_run.call_args[0][0]
+        assert exec_call_args == ["docker", "exec", "test-container", "/bin/bash", "-c", "ls -la"]
     
     @patch('subprocess.run')
     def test_upload_file(self, mock_run, container_connection):
@@ -79,8 +85,9 @@ class TestContainerConnection:
         result = container_connection.upload_file("/local/file.txt", "/container/file.txt")
         
         assert result is True
-        assert "docker cp" in mock_run.call_args[0][0]
-        assert "test-container:" in mock_run.call_args[0][0]
+        # Check that cp command was called with list arguments
+        cp_call_args = mock_run.call_args[0][0]
+        assert cp_call_args == ["docker", "cp", "/local/file.txt", "test-container:/container/file.txt"]
     
     def test_podman_support(self):
         """Test using podman instead of docker"""

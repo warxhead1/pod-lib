@@ -122,46 +122,57 @@ def check_prerequisites():
     
     # Check Docker
     import subprocess  # nosec B404
+    import shutil
+    
+    # Find docker executable path for security
+    docker_path = shutil.which("docker")
+    if not docker_path:
+        print("   ERROR: Docker not found in PATH")
+        return False
+        
     try:
-        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)  # nosec B603
+        result = subprocess.run([docker_path, "--version"], capture_output=True, text=True)  # nosec B603
         if result.returncode == 0:
-            print(f"   ✅ Docker: {result.stdout.strip()}")
+            print(f"   OK: Docker: {result.stdout.strip()}")
         else:
-            print("   ❌ Docker not found")
+            print("   ERROR: Docker not found")
             return False
     except FileNotFoundError:
-        print("   ❌ Docker not installed")
+        print("   ERROR: Docker not installed")
         return False
     
     # Check if we can run privileged containers
     try:
-        result = subprocess.run(["docker", "run", "--rm", "--privileged", "busybox", "echo", "test"],  # nosec B603
+        result = subprocess.run([docker_path, "run", "--rm", "--privileged", "busybox", "echo", "test"],  # nosec B603
                               capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
-            print("   ✅ Privileged container support")
+            print("   OK: Privileged container support")
         else:
-            print("   ❌ Cannot run privileged containers")
+            print("   ERROR: Cannot run privileged containers")
             return False
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        print("   ❌ Docker container test failed")
+        print("   ERROR: Docker container test failed")
         return False
     
     # Check VLAN support
     try:
-        result = subprocess.run(["lsmod"], capture_output=True, text=True)  # nosec B603
+        lsmod_path = shutil.which("lsmod") or "/usr/bin/lsmod"
+        result = subprocess.run([lsmod_path], capture_output=True, text=True)  # nosec B603
         if "8021q" in result.stdout:
-            print("   ✅ VLAN (802.1q) module loaded")
+            print("   OK: VLAN (802.1q) module loaded")
         else:
-            print("   ⚠️  VLAN module not loaded, attempting to load...")
-            subprocess.run(["sudo", "modprobe", "8021q"], capture_output=True)  # nosec B603
-            result = subprocess.run(["lsmod"], capture_output=True, text=True)  # nosec B603
+            print("   WARNING: VLAN module not loaded, attempting to load...")
+            sudo_path = shutil.which("sudo") or "/usr/bin/sudo"
+            modprobe_path = shutil.which("modprobe") or "/usr/sbin/modprobe"
+            subprocess.run([sudo_path, modprobe_path, "8021q"], capture_output=True)  # nosec B603
+            result = subprocess.run([lsmod_path], capture_output=True, text=True)  # nosec B603
             if "8021q" in result.stdout:
-                print("   ✅ VLAN module loaded successfully")
+                print("   OK: VLAN module loaded successfully")
             else:
-                print("   ❌ Could not load VLAN module")
+                print("   ERROR: Could not load VLAN module")
                 return False
     except FileNotFoundError:
-        print("   ❌ Cannot check VLAN support")
+        print("   ERROR: Cannot check VLAN support")
         return False
     
     return True

@@ -2,11 +2,13 @@
 # Bandit configuration for POD project - infrastructure automation tool
 
 # Test IDs to skip globally for infrastructure tools:
-skips = B404,B603,B101
+skips = B404,B603,B101,B607,B110
 
 # B404 - subprocess module usage (required for container/VM management)
 # B603 - subprocess without shell=True (we use secure list-based calls)  
 # B101 - assert usage (legitimate in infrastructure tooling)
+# B607 - partial executable paths (docker/kubectl/etc in PATH is standard)
+# B110 - try/except pass (cleanup operations may legitimately ignore errors)
 
 # Set confidence level to avoid false positives
 confidence = medium,high

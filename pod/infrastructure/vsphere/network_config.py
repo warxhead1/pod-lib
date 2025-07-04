@@ -213,6 +213,7 @@ class NetworkConfigurator:
                 try:
                     num = int(device.deviceInfo.label.split()[-1])
                     max_num = max(max_num, num)
-                except:
-                    pass
+                except (ValueError, AttributeError, IndexError):
+                    # Device label may not have expected format or be None
+                    continue
         return max_num + 1

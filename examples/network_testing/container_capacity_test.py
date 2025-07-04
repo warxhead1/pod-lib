@@ -346,7 +346,7 @@ class ContainerCapacityTester:
                 
                 # Remove container
                 import subprocess  # nosec B404
-                subprocess.run(["docker", "rm", "-f", container.name],  # nosec B603
+                subprocess.run(["docker", "rm", "-f", container.name],  # nosec B603 B607
                              capture_output=True)
             except Exception as e:
                 self.logger.error(f"Error cleaning up {container.name}: {e}")
