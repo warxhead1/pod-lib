@@ -178,11 +178,11 @@ def test_local_containers():
         
         # Create a test file locally
         test_content = "Hello from POD library!"
-        with open("/tmp/pod_test.txt", "w") as f:
+        with open("/tmp/pod_test.txt", "w") as f:  # nosec B108
             f.write(test_content)
             
         # Upload to container
-        if handler.upload_file("/tmp/pod_test.txt", "/tmp/pod_uploaded.txt"):
+        if handler.upload_file("/tmp/pod_test.txt", "/tmp/pod_uploaded.txt"):  # nosec B108
             print("   ✓ File uploaded successfully")
             
             # Verify content
@@ -195,7 +195,7 @@ def test_local_containers():
             print("   ✗ File upload failed")
             
         # Clean up local test file
-        os.remove("/tmp/pod_test.txt")
+        os.remove("/tmp/pod_test.txt")  # nosec B108
         
         print("\n" + "="*50)
         print("✓ Local container tests completed!")

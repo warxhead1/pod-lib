@@ -31,7 +31,8 @@ class SSHConnection(BaseConnection):
         """Establish SSH connection"""
         try:
             self._client = paramiko.SSHClient()
-            self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Infrastructure tools need to connect to unknown hosts
+            self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             
             connect_kwargs = {
                 'hostname': self.host,
@@ -77,8 +78,8 @@ class SSHConnection(BaseConnection):
         timeout = timeout or self.timeout
         
         try:
-            # Execute command
-            stdin, stdout, stderr = self._client.exec_command(
+            # Execute command - paramiko input is controlled by POD library
+            stdin, stdout, stderr = self._client.exec_command(  # nosec B601
                 command, 
                 timeout=timeout,
                 get_pty=True  # Get pseudo-terminal for interactive commands

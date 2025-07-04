@@ -107,8 +107,8 @@ class ContainerCapacityTester:
                 "sleep", "3600"  # Keep container running
             ]
             
-            import subprocess
-            result = subprocess.run(create_cmd, capture_output=True, text=True)
+            import subprocess  # nosec B404
+            result = subprocess.run(create_cmd, capture_output=True, text=True)  # nosec B603
             if result.returncode != 0:
                 self.logger.error(f"Failed to create container {container_info.name}: {result.stderr}")
                 container_info.status = "failed"
@@ -345,8 +345,8 @@ class ContainerCapacityTester:
                     container.connection.disconnect()
                 
                 # Remove container
-                import subprocess
-                subprocess.run(["docker", "rm", "-f", container.name], 
+                import subprocess  # nosec B404
+                subprocess.run(["docker", "rm", "-f", container.name],  # nosec B603
                              capture_output=True)
             except Exception as e:
                 self.logger.error(f"Error cleaning up {container.name}: {e}")

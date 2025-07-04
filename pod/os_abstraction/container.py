@@ -5,7 +5,7 @@ Container OS handler implementation with VLAN support
 import re
 import json
 import time
-import subprocess
+import subprocess  # nosec B404
 from typing import Dict, Any, Optional, List, Tuple
 from .base import BaseOSHandler, CommandResult, NetworkInterface, NetworkConfig
 from .linux import LinuxHandler

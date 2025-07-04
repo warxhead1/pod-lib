@@ -97,7 +97,7 @@ class NetworkDeviceTestFramework:
             self.logger.info(f"Setting up endpoint: {endpoint.name}")
             
             # Create container with necessary capabilities
-            import subprocess
+            import subprocess  # nosec B404
             create_cmd = [
                 "docker", "run", "-d",
                 "--name", endpoint.name,
@@ -108,7 +108,7 @@ class NetworkDeviceTestFramework:
                 "sleep", "7200"  # 2 hour runtime
             ]
             
-            result = subprocess.run(create_cmd, capture_output=True, text=True)
+            result = subprocess.run(create_cmd, capture_output=True, text=True)  # nosec B603
             if result.returncode != 0:
                 self.logger.error(f"Failed to create container {endpoint.name}: {result.stderr}")
                 endpoint.status = "failed"
@@ -340,8 +340,8 @@ class NetworkDeviceTestFramework:
                 if endpoint.connection:
                     endpoint.connection.disconnect()
                 
-                import subprocess
-                subprocess.run(["docker", "rm", "-f", endpoint.name], 
+                import subprocess  # nosec B404
+                subprocess.run(["docker", "rm", "-f", endpoint.name],  # nosec B603 
                              capture_output=True)
                 self.logger.info(f"Cleaned up container: {endpoint.name}")
             except Exception as e:

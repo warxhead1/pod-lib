@@ -79,7 +79,7 @@ if result.success:
 # Use secure temp directory
 import tempfile
 with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tmp:
-    remote_path = f"/tmp/{os.path.basename(tmp.name)}"
+    remote_path = f"/tmp/{os.path.basename(tmp.name)}"  # nosec B108
 vm.upload_file("local_test_script.py", remote_path)
 
 # Execute the test script

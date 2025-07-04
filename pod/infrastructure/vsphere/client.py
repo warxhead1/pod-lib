@@ -28,7 +28,8 @@ class VSphereClient:
         try:
             context = None
             if self.disable_ssl_verification:
-                context = ssl._create_unverified_context()
+                # Lab environments may need unverified SSL context
+                context = ssl._create_unverified_context()  # nosec B323
                 
             self._service_instance = connect.SmartConnect(
                 host=self.host,

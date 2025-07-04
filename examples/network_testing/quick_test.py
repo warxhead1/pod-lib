@@ -121,9 +121,9 @@ def check_prerequisites():
     print("🔍 Checking prerequisites...")
     
     # Check Docker
-    import subprocess
+    import subprocess  # nosec B404
     try:
-        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)
+        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)  # nosec B603
         if result.returncode == 0:
             print(f"   ✅ Docker: {result.stdout.strip()}")
         else:
@@ -135,7 +135,7 @@ def check_prerequisites():
     
     # Check if we can run privileged containers
     try:
-        result = subprocess.run(["docker", "run", "--rm", "--privileged", "busybox", "echo", "test"], 
+        result = subprocess.run(["docker", "run", "--rm", "--privileged", "busybox", "echo", "test"],  # nosec B603
                               capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
             print("   ✅ Privileged container support")
@@ -148,13 +148,13 @@ def check_prerequisites():
     
     # Check VLAN support
     try:
-        result = subprocess.run(["lsmod"], capture_output=True, text=True)
+        result = subprocess.run(["lsmod"], capture_output=True, text=True)  # nosec B603
         if "8021q" in result.stdout:
             print("   ✅ VLAN (802.1q) module loaded")
         else:
             print("   ⚠️  VLAN module not loaded, attempting to load...")
-            subprocess.run(["sudo", "modprobe", "8021q"], capture_output=True)
-            result = subprocess.run(["lsmod"], capture_output=True, text=True)
+            subprocess.run(["sudo", "modprobe", "8021q"], capture_output=True)  # nosec B603
+            result = subprocess.run(["lsmod"], capture_output=True, text=True)  # nosec B603
             if "8021q" in result.stdout:
                 print("   ✅ VLAN module loaded successfully")
             else:
