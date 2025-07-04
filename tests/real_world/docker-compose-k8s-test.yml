@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # Kind (Kubernetes in Docker) control plane
+  kind-control-plane:
+    image: kindest/node:v1.28.0
+    container_name: kind-control-plane
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    tmpfs:
+      - /tmp
+      - /run
+    volumes:
+      - /var
+      - /lib/modules:/lib/modules:ro
+      - ./kind-config.yaml:/etc/kind/config.yaml
+    ports:
+      - "6443:6443"  # Kubernetes API
+      - "30000-32767:30000-32767"  # NodePort range
+    environment:
+      - KUBECONFIG=/etc/kubernetes/admin.conf
+    networks:
+      - k8s-test
+
+  # Kind worker node 1
+  kind-worker-1:
+    image: kindest/node:v1.28.0
+    container_name: kind-worker-1
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    tmpfs:
+      - /tmp
+      - /run
+    volumes:
+      - /var
+      - /lib/modules:/lib/modules:ro
+    networks:
+      - k8s-test
+
+  # Kind worker node 2
+  kind-worker-2:
+    image: kindest/node:v1.28.0
+    container_name: kind-worker-2
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    tmpfs:
+      - /tmp
+      - /run
+    volumes:
+      - /var
+      - /lib/modules:/lib/modules:ro
+    networks:
+      - k8s-test
+
+  # Test runner container
+  pod-test-runner:
+    build:
+      context: ../..
+      dockerfile: tests/real_world/Dockerfile.test
+    container_name: pod-test-runner
+    depends_on:
+      - kind-control-plane
+      - kind-worker-1
+      - kind-worker-2
+    volumes:
+      - ../../:/app
+      - ./test-results:/test-results
+      - ~/.kube:/root/.kube
+    environment:
+      - KUBECONFIG=/root/.kube/config
+      - PYTHONPATH=/app
+    command: |
+      bash -c "
+        echo 'Waiting for Kubernetes cluster to be ready...'
+        sleep 30
+        
+        echo 'Installing CNI plugins...'
+        kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+        
+        echo 'Waiting for CNI to be ready...'
+        kubectl wait --for=condition=ready pods -l k8s-app=calico-node -n kube-system --timeout=300s
+        
+        echo 'Running tests...'
+        cd /app && ./tests/real_world/run_k8s_tests.sh
+        
+        echo 'Copying results...'
+        cp -r test_report.html coverage_report /test-results/ 2>/dev/null || true
+      "
+    networks:
+      - k8s-test
+
+networks:
+  k8s-test:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16

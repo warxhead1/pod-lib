@@ -171,7 +171,7 @@ class KubernetesConnection(BaseConnection):
         """Verify connection by fetching cluster information"""
         try:
             # Get cluster version
-            version_info = self.v1.get_code()
+            version_info = client.VersionApi().get_code()
             
             # Get node information
             nodes = self.v1.list_node()

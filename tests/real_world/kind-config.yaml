@@ -1,0 +1,96 @@
+# Kind cluster configuration for testing POD library
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: pod-test-cluster
+
+# Cluster-wide settings
+networking:
+  # Disable default CNI to install custom ones
+  disableDefaultCNI: false
+  # Pod subnet
+  podSubnet: "10.244.0.0/16"
+  # Service subnet
+  serviceSubnet: "10.96.0.0/12"
+  # API server port
+  apiServerPort: 6443
+
+# Node configuration
+nodes:
+  # Control plane node
+  - role: control-plane
+    image: kindest/node:v1.28.0
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "pod-test=control-plane"
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            enable-admission-plugins: "NamespaceLifecycle,ResourceQuota,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+    # Mount local directories for testing
+    extraMounts:
+      - hostPath: ./test-data
+        containerPath: /test-data
+        readOnly: false
+    # Port mappings for services
+    extraPortMappings:
+      - containerPort: 30000
+        hostPort: 30000
+        protocol: TCP
+      - containerPort: 30001
+        hostPort: 30001
+        protocol: TCP
+
+  # Worker nodes
+  - role: worker
+    image: kindest/node:v1.28.0
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "pod-test=worker-1"
+    extraMounts:
+      - hostPath: ./test-data
+        containerPath: /test-data
+        readOnly: false
+
+  - role: worker
+    image: kindest/node:v1.28.0
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "pod-test=worker-2"
+    extraMounts:
+      - hostPath: ./test-data
+        containerPath: /test-data
+        readOnly: false
+
+# Feature gates for testing
+featureGates:
+  # Enable features for testing
+  "EphemeralContainers": true
+  "GenericEphemeralVolume": true
+
+# Cluster configuration patches
+kubeadmConfigPatches:
+  - |
+    apiVersion: kubeadm.k8s.io/v1beta3
+    kind: ClusterConfiguration
+    metadata:
+      name: config
+    networking:
+      serviceSubnet: "10.96.0.0/12"
+      podSubnet: "10.244.0.0/16"
+      dnsDomain: "cluster.local"
+    scheduler:
+      extraArgs:
+        bind-address: "0.0.0.0"
+    controllerManager:
+      extraArgs:
+        bind-address: "0.0.0.0"

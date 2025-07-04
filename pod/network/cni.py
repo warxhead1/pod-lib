@@ -105,8 +105,12 @@ class CNIManager:
             ])
             plugins["sriov"] = sriov_check
             
-        except Exception:
-            pass
+        except ApiException as e:
+            # CNI detection limited due to API access issues
+            plugins["detection_errors"] = [f"CNI detection limited: {e.reason}"]
+        except Exception as e:
+            # CNI detection failed
+            plugins["detection_errors"] = [f"CNI detection failed: {str(e)}"]
         
         return plugins
     
@@ -121,7 +125,11 @@ class CNIManager:
                     )
                     if pods.items:
                         return True
-            except Exception:
+            except ApiException as e:
+                # Invalid label selector or API rate limiting, try next selector
+                continue
+            except Exception as e:
+                # Selector failed, try next one
                 continue
         return False
     
@@ -435,6 +443,58 @@ class CNIManager:
         
         return policy
     
+    def apply_network_attachment(self, network_attachment: Dict[str, Any], namespace: str) -> Dict[str, bool]:
+        """Apply NetworkAttachmentDefinition to cluster"""
+        try:
+            self.k8s.custom_objects_v1.create_namespaced_custom_object(
+                group="k8s.cni.cncf.io",
+                version="v1",
+                namespace=namespace,
+                plural="network-attachment-definitions",
+                body=network_attachment
+            )
+            return {"success": True}
+        except ApiException as e:
+            if e.status == 409:  # Already exists
+                return {"success": True, "message": "Already exists"}
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def list_network_attachments(self, namespace: str) -> List[Dict[str, Any]]:
+        """List NetworkAttachmentDefinitions in namespace"""
+        try:
+            response = self.k8s.custom_objects_v1.list_namespaced_custom_object(
+                group="k8s.cni.cncf.io",
+                version="v1",
+                namespace=namespace,
+                plural="network-attachment-definitions"
+            )
+            return [
+                {
+                    "name": item["metadata"]["name"],
+                    "namespace": item["metadata"]["namespace"],
+                    "config": item["spec"]["config"]
+                }
+                for item in response.get("items", [])
+            ]
+        except Exception:
+            return []
+    
+    def delete_network_attachment(self, name: str, namespace: str) -> bool:
+        """Delete NetworkAttachmentDefinition"""
+        try:
+            self.k8s.custom_objects_v1.delete_namespaced_custom_object(
+                group="k8s.cni.cncf.io",
+                version="v1",
+                namespace=namespace,
+                plural="network-attachment-definitions",
+                name=name
+            )
+            return True
+        except Exception:
+            return False
+
     def apply_network_configuration(self, config_dict: Dict[str, Any]) -> bool:
         """Apply network configuration to the cluster"""
         try:

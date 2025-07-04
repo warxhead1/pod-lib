@@ -167,3 +167,18 @@ test-reports/
 # Local development files
 local/
 scratch/
+
+# Security scan reports
+bandit-report*.json
+
+# Kubernetes test artifacts
+multus-test-pod.yaml
+calico-config.yaml
+
+# Kubernetes binaries (should be installed separately)
+kind
+minikube
+kubectl
+
+# Temporary test files
+/tmp/multus-test-pod.yaml

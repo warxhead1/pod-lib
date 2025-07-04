@@ -3,6 +3,7 @@ Kubernetes infrastructure provider
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
+from kubernetes.client.rest import ApiException
 from ...connections.kubernetes import KubernetesConnection
 from ...os_abstraction.kubernetes import KubernetesHandler
 from ...network.cni import CNIManager, CNIConfig
@@ -459,7 +460,11 @@ class KubernetesProvider:
                         "ready_replicas": deployment.status.ready_replicas or 0
                     })
             
-        except Exception:
+        except ApiException as e:
+            # Log workload listing failures but return partial results
+            pass
+        except Exception as e:
+            # Log unexpected errors but return partial results
             pass
         
         return workloads

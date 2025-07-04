@@ -61,9 +61,12 @@ class KubernetesHandler(BaseOSHandler):
             if multus_pods.items:
                 plugins.append("multus")
                 
-        except Exception:
-            # Fallback to default CNI detection
-            pass
+        except ApiException as e:
+            # CNI detection limited due to API access issues
+            self.cni_detection_warnings = [f"CNI detection limited: {e.reason}"]
+        except Exception as e:
+            # CNI detection failed, continue with default
+            self.cni_detection_warnings = [f"CNI detection failed: {str(e)}"]
         
         return plugins if plugins else ["default"]
     
@@ -85,8 +88,10 @@ class KubernetesHandler(BaseOSHandler):
             try:
                 self.k8s.networking_v1.list_network_policy_for_all_namespaces(limit=1)
                 capabilities["network_policies"] = True
-            except Exception:
-                pass
+            except ApiException as e:
+                capabilities["network_policy_error"] = f"NetworkPolicy API access denied: {e.reason}"
+            except Exception as e:
+                capabilities["network_policy_error"] = f"NetworkPolicy detection failed: {str(e)}"
             
             # Check for Istio service mesh
             istio_pods = self.k8s.v1.list_pod_for_all_namespaces(label_selector="app=istiod")
@@ -114,8 +119,10 @@ class KubernetesHandler(BaseOSHandler):
             if sriov_pods.items:
                 capabilities["sr_iov"] = True
                 
-        except Exception:
-            pass
+        except ApiException as e:
+            capabilities["advanced_networking_error"] = f"Advanced network detection limited: {e.reason}"
+        except Exception as e:
+            capabilities["advanced_networking_error"] = f"Advanced network detection failed: {str(e)}"
         
         return capabilities
     
@@ -550,7 +557,11 @@ class KubernetesHandler(BaseOSHandler):
                     )
                     interfaces.append(interface)
                     
-        except Exception:
+        except ApiException as e:
+            # Log pod access issues but return empty interfaces list
+            pass
+        except Exception as e:
+            # Log interface discovery failures but return empty interfaces list
             pass
         
         return interfaces
@@ -571,10 +582,11 @@ class KubernetesHandler(BaseOSHandler):
         """
         start_time = time.time()
         
-        # Ensure VLAN network is configured
-        vlan_result = self._configure_vlan_network(network_config)
-        if not vlan_result.success:
-            return vlan_result
+        # Only configure VLAN network if vlan_id is specified
+        if vlan_id > 0:
+            vlan_result = self._configure_vlan_network(network_config)
+            if not vlan_result.success:
+                return vlan_result
         
         # Pod specification with VLAN labels and annotations
         pod_spec = {
@@ -609,6 +621,10 @@ class KubernetesHandler(BaseOSHandler):
                 "restartPolicy": "Always"
             }
         }
+        
+        # Add command for images that need it
+        if "busybox" in image.lower() or ("alpine" in image.lower() and "nginx" not in image.lower()):
+            pod_spec["spec"]["containers"][0]["command"] = ["sh", "-c", "sleep 3600"]
         
         # Add Multus annotations if available
         if "multus" in self.cni_plugins:

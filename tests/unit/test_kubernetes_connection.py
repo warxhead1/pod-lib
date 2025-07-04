@@ -48,7 +48,8 @@ class TestKubernetesConnection:
     
     @patch('pod.connections.kubernetes.config.load_kube_config')
     @patch('pod.connections.kubernetes.client.CoreV1Api')
-    def test_connect_kubeconfig_success(self, mock_core_api, mock_load_config, k8s_connection):
+    @patch('pod.connections.kubernetes.client.VersionApi')
+    def test_connect_kubeconfig_success(self, mock_version_api, mock_core_api, mock_load_config, k8s_connection):
         """Test successful connection with kubeconfig"""
         # Mock kubeconfig file exists
         with patch('pathlib.Path.exists', return_value=True):
@@ -57,9 +58,13 @@ class TestKubernetesConnection:
             mock_version.major = "1"
             mock_version.minor = "28"
             mock_version.git_version = "v1.28.0"
+            mock_version.platform = "linux/amd64"
+            
+            mock_version_instance = Mock()
+            mock_version_instance.get_code.return_value = mock_version
+            mock_version_api.return_value = mock_version_instance
             
             mock_api_instance = Mock()
-            mock_api_instance.get_code.return_value = mock_version
             mock_api_instance.list_node.return_value = Mock(items=[])
             mock_core_api.return_value = mock_api_instance
             
@@ -77,7 +82,8 @@ class TestKubernetesConnection:
     
     @patch('pod.connections.kubernetes.client.Configuration.set_default')
     @patch('pod.connections.kubernetes.client.CoreV1Api')
-    def test_connect_direct_api_success(self, mock_core_api, mock_set_default):
+    @patch('pod.connections.kubernetes.client.VersionApi')
+    def test_connect_direct_api_success(self, mock_version_api, mock_core_api, mock_set_default):
         """Test successful connection with direct API"""
         conn = KubernetesConnection(
             api_server="https://k8s-api.example.com:6443",
@@ -89,9 +95,13 @@ class TestKubernetesConnection:
         mock_version.major = "1"
         mock_version.minor = "28"
         mock_version.git_version = "v1.28.0"
+        mock_version.platform = "linux/amd64"
+        
+        mock_version_instance = Mock()
+        mock_version_instance.get_code.return_value = mock_version
+        mock_version_api.return_value = mock_version_instance
         
         mock_api_instance = Mock()
-        mock_api_instance.get_code.return_value = mock_version
         mock_api_instance.list_node.return_value = Mock(items=[])
         mock_core_api.return_value = mock_api_instance
         
@@ -101,17 +111,21 @@ class TestKubernetesConnection:
         mock_set_default.assert_called_once()
     
     @patch('pod.connections.kubernetes.client.CoreV1Api')
-    def test_connect_authentication_error(self, mock_core_api, k8s_connection):
+    @patch('pod.connections.kubernetes.client.VersionApi')
+    def test_connect_authentication_error(self, mock_version_api, mock_core_api, k8s_connection):
         """Test authentication error during connection"""
         from kubernetes.client.rest import ApiException
         
+        mock_version_instance = Mock()
+        mock_version_instance.get_code.side_effect = ApiException(status=401)
+        mock_version_api.return_value = mock_version_instance
+        
         mock_api_instance = Mock()
-        mock_api_instance.get_code.side_effect = ApiException(status=401)
         mock_core_api.return_value = mock_api_instance
         
         with patch('pathlib.Path.exists', return_value=True):
             with patch('pod.connections.kubernetes.config.load_kube_config'):
-                with pytest.raises(AuthenticationError):
+                with pytest.raises(ConnectionError, match="Kubernetes authentication failed"):
                     k8s_connection.connect()
     
     def test_disconnect(self, k8s_connection):
@@ -141,7 +155,7 @@ class TestKubernetesConnection:
         
         assert k8s_connection.is_connected() is False
     
-    @patch('pod.connections.kubernetes.stream')
+    @patch('kubernetes.stream.stream')
     def test_execute_command_success(self, mock_stream, k8s_connection):
         """Test successful command execution"""
         k8s_connection.v1 = Mock()

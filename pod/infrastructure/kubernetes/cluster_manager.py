@@ -70,8 +70,15 @@ class ClusterManager:
                         elif pod.status.phase == "Failed":
                             health["system_pods"]["failed"] += 1
                             health["warnings"].append(f"System pod {pod.metadata.name} failed")
-                except Exception:
-                    pass
+                except ApiException as e:
+                    if e.status == 403:
+                        health["warnings"].append(f"Cannot access namespace {namespace}: permission denied")
+                    elif e.status == 404:
+                        health["warnings"].append(f"Namespace {namespace} not found")
+                    else:
+                        health["warnings"].append(f"Cannot access namespace {namespace}: {e.reason}")
+                except Exception as e:
+                    health["warnings"].append(f"Error checking pods in namespace {namespace}: {str(e)}")
             
             # Check DNS
             try:
@@ -173,11 +180,15 @@ class ClusterManager:
                         "pending_pods": len([p for p in pods.items if p.status.phase == "Pending"]),
                         "failed_pods": len([p for p in pods.items if p.status.phase == "Failed"])
                     }
-                except Exception:
-                    usage["namespace_usage"][ns_name] = {"pod_count": 0, "error": "Could not fetch pods"}
+                except ApiException as e:
+                    usage["namespace_usage"][ns_name] = {"pod_count": 0, "error": f"API error: {e.reason}"}
+                except Exception as e:
+                    usage["namespace_usage"][ns_name] = {"pod_count": 0, "error": f"Failed to fetch pods: {str(e)}"}
                     
-        except Exception:
-            pass
+        except ApiException as e:
+            usage["error"] = f"Failed to access resource usage API: {e.reason}"
+        except Exception as e:
+            usage["error"] = f"Resource usage collection failed: {str(e)}"
         
         return usage
     
@@ -236,8 +247,10 @@ class ClusterManager:
             endpoints = self.k8s.v1.list_endpoints_for_all_namespaces()
             networking["endpoints"]["count"] = len(endpoints.items)
             
-        except Exception:
-            pass
+        except ApiException as e:
+            networking["warnings"] = [f"Network API access denied: {e.reason}"]
+        except Exception as e:
+            networking["warnings"] = [f"Network discovery failed: {str(e)}"]
         
         return networking
     
@@ -261,8 +274,10 @@ class ClusterManager:
                         "is_default": sc.metadata.annotations and 
                                     sc.metadata.annotations.get("storageclass.kubernetes.io/is-default-class") == "true"
                     })
-            except Exception:
-                pass
+            except ApiException as e:
+                storage["storage_class_error"] = f"Storage class API access denied: {e.reason}"
+            except Exception as e:
+                storage["storage_class_error"] = f"Storage class discovery failed: {str(e)}"
             
             # Get persistent volumes
             try:
@@ -275,8 +290,10 @@ class ClusterManager:
                     pv_status[status] = pv_status.get(status, 0) + 1
                 
                 storage["persistent_volumes"]["by_status"] = pv_status
-            except Exception:
-                pass
+            except ApiException as e:
+                storage["persistent_volume_error"] = f"PV API access denied: {e.reason}"
+            except Exception as e:
+                storage["persistent_volume_error"] = f"PV discovery failed: {str(e)}"
             
             # Get persistent volume claims
             try:
@@ -289,11 +306,15 @@ class ClusterManager:
                     pvc_status[status] = pvc_status.get(status, 0) + 1
                 
                 storage["persistent_volume_claims"]["by_status"] = pvc_status
-            except Exception:
-                pass
+            except ApiException as e:
+                storage["persistent_volume_claim_error"] = f"PVC API access denied: {e.reason}"
+            except Exception as e:
+                storage["persistent_volume_claim_error"] = f"PVC discovery failed: {str(e)}"
                 
-        except Exception:
-            pass
+        except ApiException as e:
+            storage["storage_api_error"] = f"Storage API access denied: {e.reason}"
+        except Exception as e:
+            storage["storage_api_error"] = f"Storage discovery failed: {str(e)}"
         
         return storage
     
@@ -322,29 +343,37 @@ class ClusterManager:
                     "roles": len(roles.items) + len(cluster_roles.items),
                     "bindings": len(role_bindings.items) + len(cluster_role_bindings.items)
                 }
-            except Exception:
-                security["rbac"]["enabled"] = False
+            except ApiException as e:
+                security["rbac"] = {"enabled": False, "error": f"RBAC API access denied: {e.reason}"}
+            except Exception as e:
+                security["rbac"] = {"enabled": False, "error": f"RBAC discovery failed: {str(e)}"}
             
             # Check secrets
             try:
                 secrets = self.k8s.v1.list_secret_for_all_namespaces()
                 security["secrets"]["count"] = len(secrets.items)
-            except Exception:
-                pass
+            except ApiException as e:
+                security["secrets"]["error"] = f"Secrets API access denied: {e.reason}"
+            except Exception as e:
+                security["secrets"]["error"] = f"Secrets discovery failed: {str(e)}"
             
             # Check service accounts
             try:
                 service_accounts = self.k8s.v1.list_service_account_for_all_namespaces()
                 security["service_accounts"]["count"] = len(service_accounts.items)
-            except Exception:
-                pass
+            except ApiException as e:
+                security["service_accounts"]["error"] = f"ServiceAccount API access denied: {e.reason}"
+            except Exception as e:
+                security["service_accounts"]["error"] = f"ServiceAccount discovery failed: {str(e)}"
             
             # Check network policies
             try:
                 network_policies = self.k8s.networking_v1.list_network_policy_for_all_namespaces()
                 security["network_policies"]["count"] = len(network_policies.items)
-            except Exception:
-                pass
+            except ApiException as e:
+                security["network_policies"]["error"] = f"NetworkPolicy API access denied: {e.reason}"
+            except Exception as e:
+                security["network_policies"]["error"] = f"NetworkPolicy discovery failed: {str(e)}"
             
             # Check pod security contexts
             try:
@@ -360,11 +389,15 @@ class ClusterManager:
                     "pods_with_context": pods_with_context,
                     "total_pods": total_pods
                 }
-            except Exception:
-                pass
+            except ApiException as e:
+                security["security_contexts"]["error"] = f"Security context API access denied: {e.reason}"
+            except Exception as e:
+                security["security_contexts"]["error"] = f"Security context discovery failed: {str(e)}"
                 
-        except Exception:
-            pass
+        except ApiException as e:
+            security["security_api_error"] = f"Security API access denied: {e.reason}"
+        except Exception as e:
+            security["security_api_error"] = f"Security discovery failed: {str(e)}"
         
         return security
     
@@ -437,7 +470,11 @@ class ClusterManager:
                         namespace=pod.metadata.namespace,
                         grace_period_seconds=grace_period
                     )
-                except Exception:
+                except ApiException as e:
+                    # Log pod eviction failures but continue with other pods
+                    continue
+                except Exception as e:
+                    # Log unexpected errors but continue with other pods
                     continue
             
             return True
