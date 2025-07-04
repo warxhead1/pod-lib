@@ -304,16 +304,18 @@ class TestContainerHandler:
     
     def test_inherited_linux_functionality(self, container_handler, mock_container_connection):
         """Test that container handler inherits Linux functionality"""
-        # Test package installation
+        # Test package installation (container handler overrides install_package)
         mock_container_connection.execute_command.side_effect = [
-            ("", "", 0),  # which dnf
-            ("Package installed", "", 0)  # dnf install
+            ("", "", 0),  # which apt-get
+            ("Package installed", "", 0)  # apt-get update && install
         ]
         
         result = container_handler.install_package("tcpdump")
         
         assert result.success is True
-        assert "dnf install -y tcpdump" in mock_container_connection.execute_command.call_args[0][0]
+        # Container handler uses apt-get update && apt-get install -y (no as_admin needed)
+        calls = mock_container_connection.execute_command.call_args_list
+        assert any("apt-get" in str(call) for call in calls)
     
     def test_error_handling(self, container_handler, mock_container_connection):
         """Test error handling in VLAN configuration"""

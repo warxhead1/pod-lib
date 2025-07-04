@@ -3,6 +3,7 @@
 Example demonstrating multi-OS support with automatic OS detection
 """
 
+import os
 from pod import PODClient
 from pod.os_abstraction import NetworkConfig, OSHandlerFactory
 from pod.connections import SSHConnection, WinRMConnection, DockerConnection
@@ -14,10 +15,11 @@ def example_auto_os_detection():
     print("=== Automatic OS Detection Example ===\n")
     
     # Initialize POD client
+    # Use environment variables: export VSPHERE_PASSWORD=your_password
     client = PODClient(
         vsphere_host="vcenter.example.com",
         vsphere_username="admin@vsphere.local",
-        vsphere_password="password"
+        vsphere_password=os.getenv("VSPHERE_PASSWORD", "your_password_here")
     )
     
     # Connect to vSphere
@@ -142,7 +144,7 @@ def example_windows_specific():
     
     # Connect to Windows VM
     win_conn = WinRMConnection("192.168.1.100")
-    win_conn.connect(username="Administrator", password="password")
+    win_conn.connect(username="Administrator", password=os.getenv("WINDOWS_PASSWORD", "your_windows_password"))
     
     # Create Windows handler
     from pod.os_abstraction import WindowsHandler

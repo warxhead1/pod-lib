@@ -36,8 +36,8 @@ class ContainerConnection(BaseConnection):
         """Connect to container (verify it exists and is running)"""
         try:
             # Check if container exists and is running
-            cmd = f"{self.command_prefix} inspect {self.container_id}"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            cmd = [self.command_prefix, "inspect", self.container_id]
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
                 container_info = json.loads(result.stdout)
@@ -49,8 +49,8 @@ class ContainerConnection(BaseConnection):
                     self._connected = True
                 else:
                     # Try to start the container
-                    cmd = f"{self.command_prefix} start {self.container_id}"
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    cmd = [self.command_prefix, "start", self.container_id]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
                     if result.returncode == 0:
                         self._connected = True
                     else:
@@ -71,8 +71,8 @@ class ContainerConnection(BaseConnection):
             return False
             
         # Verify container is still running
-        cmd = f"{self.command_prefix} inspect {self.container_id} --format='{{{{.State.Running}}}}'"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        cmd = [self.command_prefix, "inspect", self.container_id, "--format={{.State.Running}}"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
         
         return result.returncode == 0 and result.stdout.strip() == 'true'
         
@@ -82,12 +82,11 @@ class ContainerConnection(BaseConnection):
             raise ConnectionError("Not connected to container")
             
         # Build docker/podman exec command
-        exec_cmd = f"{self.command_prefix} exec {self.container_id} /bin/bash -c '{command}'"
+        exec_cmd = [self.command_prefix, "exec", self.container_id, "/bin/bash", "-c", command]
         
         try:
             result = subprocess.run(
                 exec_cmd,
-                shell=True,
                 capture_output=True,
                 text=True,
                 timeout=timeout
@@ -100,14 +99,14 @@ class ContainerConnection(BaseConnection):
             
     def upload_file(self, local_path: str, remote_path: str) -> bool:
         """Upload file to container"""
-        cmd = f"{self.command_prefix} cp '{local_path}' {self.container_id}:'{remote_path}'"
-        result = subprocess.run(cmd, shell=True, capture_output=True)
+        cmd = [self.command_prefix, "cp", local_path, f"{self.container_id}:{remote_path}"]
+        result = subprocess.run(cmd, capture_output=True)
         return result.returncode == 0
         
     def download_file(self, remote_path: str, local_path: str) -> bool:
         """Download file from container"""
-        cmd = f"{self.command_prefix} cp {self.container_id}:'{remote_path}' '{local_path}'"
-        result = subprocess.run(cmd, shell=True, capture_output=True)
+        cmd = [self.command_prefix, "cp", f"{self.container_id}:{remote_path}", local_path]
+        result = subprocess.run(cmd, capture_output=True)
         return result.returncode == 0
 
 
@@ -294,8 +293,8 @@ class ContainerHandler(LinuxHandler):
         
         if isinstance(self.connection, ContainerConnection):
             # Get container info from host
-            cmd = f"{self.connection.command_prefix} inspect {self.connection.container_id}"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            cmd = [self.connection.command_prefix, "inspect", self.connection.container_id]
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
                 try:

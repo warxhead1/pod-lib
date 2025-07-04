@@ -2,14 +2,16 @@
 Example usage of the POD library
 """
 
+import os
 from pod import PODClient
 from pod.os_abstraction.base import NetworkConfig
 
 # Initialize POD client with vSphere credentials
+# Use environment variables for security: export VSPHERE_PASSWORD=your_password
 client = PODClient(
     vsphere_host="vcenter.example.com",
     vsphere_username="administrator@vsphere.local", 
-    vsphere_password="password",
+    vsphere_password=os.getenv("VSPHERE_PASSWORD", "your_password_here"),
     vsphere_port=443,
     disable_ssl_verification=True  # For testing only
 )
@@ -32,7 +34,7 @@ print(f"OS Type: {info['guest']['os_type']}")
 print(f"IP Address: {info['guest']['ip_address']}")
 
 # Connect to the VM (automatically detects OS and uses appropriate connection)
-vm.connect(username="root", password="password")
+vm.connect(username="root", password=os.getenv("VM_PASSWORD", "your_vm_password"))
 
 # Execute commands
 result = vm.execute_command("uname -a")
@@ -74,7 +76,11 @@ if result.success:
     print("Package installed successfully")
 
 # Upload a test script
-vm.upload_file("local_test_script.py", "/tmp/test_script.py")
+# Use secure temp directory
+import tempfile
+with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tmp:
+    remote_path = f"/tmp/{os.path.basename(tmp.name)}"
+vm.upload_file("local_test_script.py", remote_path)
 
 # Execute the test script
 result = vm.execute_command("python3 /tmp/test_script.py")
@@ -93,7 +99,7 @@ for disk in disk_usage:
 
 # Work with Windows VM
 windows_vm = client.get_vm("test-windows-vm")
-windows_vm.connect(username="Administrator", password="password")
+windows_vm.connect(username="Administrator", password=os.getenv("WINDOWS_PASSWORD", "your_windows_password"))
 
 # Same API works for Windows
 result = windows_vm.execute_command("ipconfig /all")

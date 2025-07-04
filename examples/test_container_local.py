@@ -18,7 +18,13 @@ from pod.os_abstraction import ContainerHandler, ContainerConnection, NetworkCon
 
 def run_command(cmd):
     """Run a shell command"""
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    # Convert string command to list for security
+    if isinstance(cmd, str):
+        import shlex
+        cmd_list = shlex.split(cmd)
+    else:
+        cmd_list = cmd
+    result = subprocess.run(cmd_list, capture_output=True, text=True)
     return result.returncode == 0, result.stdout, result.stderr
 
 

@@ -1,0 +1,29 @@
+[bandit]
+# Bandit configuration for POD project
+
+# Exclude test files and examples from password checks
+# since they may contain hardcoded credentials for demonstration
+exclude = tests/,docs/
+
+# Skip certain tests that are false positives in our context
+skips = B404,B603
+
+# Only report medium and high severity issues
+severity = medium,high
+
+# Test IDs to skip:
+# B404 - Consider possible security implications associated with subprocess module
+#        (We intentionally use subprocess for container management)
+# B603 - subprocess call without shell=True
+#        (We've fixed shell=True issues, list-based calls are safe)
+
+[blacklist_calls]
+# Allow subprocess calls since they're necessary for container operations
+bad_name_sets = 
+
+[hardcoded_password_string]
+# Skip password checks in example files
+word_list = examples/
+
+[subprocess_popen_with_shell_equals_true]
+# We've fixed all shell=True issues by using list arguments
