@@ -1,0 +1,34 @@
+# Dockerfile for POD test controller
+FROM python:3.9-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    openssh-client \
+    iputils-ping \
+    iproute2 \
+    bridge-utils \
+    docker.io \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create test user
+RUN useradd -m -s /bin/bash podtest
+
+# Install Python dependencies
+WORKDIR /pod
+COPY requirements.txt requirements-test.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-test.txt
+
+# Copy POD library
+COPY . /pod/
+
+# Create test results directory
+RUN mkdir -p /test-results && chown podtest:podtest /test-results
+
+# Switch to test user
+USER podtest
+
+# Set Python path
+ENV PYTHONPATH=/pod:$PYTHONPATH
+
+CMD ["python", "-m", "pytest", "tests/integration/", "-v"]

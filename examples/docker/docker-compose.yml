@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # Docker-in-Docker host container
+  dind-host:
+    image: docker:24-dind
+    container_name: pod-dind-host
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      # Mount Docker socket for nested containers
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      # Mount the POD library for testing
+      - ./:/pod:ro
+      # Persistent storage for container data
+      - dind-data:/var/lib/docker
+    networks:
+      pod-test-net:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "2376:2376"  # Docker daemon
+      - "2222:22"    # SSH for management
+    command: 
+      - dockerd
+      - --host=tcp://0.0.0.0:2376
+      - --host=unix:///var/run/docker.sock
+      - --tls
+      - --tlsverify
+      - --tlscacert=/certs/ca/ca.pem
+      - --tlscert=/certs/server/cert.pem
+      - --tlskey=/certs/server/key.pem
+
+  # POD test controller - runs our test scripts
+  pod-controller:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: pod-controller
+    depends_on:
+      - dind-host
+    environment:
+      - DOCKER_HOST=tcp://dind-host:2376
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_CERT_PATH=/certs/client
+    volumes:
+      - docker-certs-client:/certs/client:ro
+      - ./:/pod
+      - ./test-results:/test-results
+    networks:
+      pod-test-net:
+        ipv4_address: 172.20.0.20
+    command: ["python", "/pod/tests/integration/test_container_integration.py"]
+
+  # Bridge setup container for VLAN support
+  vlan-bridge-setup:
+    image: alpine:latest
+    container_name: pod-vlan-setup
+    privileged: true
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: |
+      sh -c "
+        apk add --no-cache iproute2 bridge-utils
+        # Create bridges for different VLANs
+        ip link add br-vlan100 type bridge
+        ip link add br-vlan200 type bridge
+        ip link add br-vlan300 type bridge
+        ip link set br-vlan100 up
+        ip link set br-vlan200 up
+        ip link set br-vlan300 up
+        # Keep container running
+        tail -f /dev/null
+      "
+
+volumes:
+  docker-certs-ca:
+  docker-certs-client:
+  dind-data:
+
+networks:
+  pod-test-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+  
+  # VLAN networks for testing
+  vlan100:
+    driver: macvlan
+    driver_opts:
+      parent: eth0.100
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1
+          
+  vlan200:
+    driver: macvlan
+    driver_opts:
+      parent: eth0.200
+    ipam:
+      config:
+        - subnet: 192.168.200.0/24
+          gateway: 192.168.200.1
+          
+  vlan300:
+    driver: macvlan
+    driver_opts:
+      parent: eth0.300
+    ipam:
+      config:
+        - subnet: 192.168.300.0/24
+          gateway: 192.168.300.1
