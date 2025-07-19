@@ -17,9 +17,9 @@ class TestContainerConnection:
     @pytest.fixture
     def container_connection(self):
         """Create a container connection"""
-        return ContainerConnection("test-container", use_docker=True)
+        return DockerConnection("test-container", runtime="docker")
     
-    @patch('subprocess.run')
+    @patch('pod.os_abstraction.container.subprocess.run')
     def test_connect_running_container(self, mock_run, container_connection):
         """Test connecting to a running container"""
         # Mock inspect command showing running container
@@ -38,7 +38,7 @@ class TestContainerConnection:
         called_args = mock_run.call_args[0][0]
         assert called_args == ["docker", "inspect", "test-container"]
     
-    @patch('subprocess.run')
+    @patch('pod.os_abstraction.container.subprocess.run')
     def test_connect_stopped_container(self, mock_run, container_connection):
         """Test connecting to a stopped container (should start it)"""
         # First call: inspect shows stopped
@@ -56,17 +56,13 @@ class TestContainerConnection:
         start_call_args = mock_run.call_args_list[1][0][0]
         assert start_call_args == ["docker", "start", "test-container"]
     
-    @patch('subprocess.run')
+    @patch('pod.os_abstraction.container.subprocess.run')
     def test_execute_command(self, mock_run, container_connection):
         """Test executing command in container"""
         container_connection._connected = True
-        # Mock is_connected to return True since we're checking container status
-        mock_run.side_effect = [
-            # First call: is_connected check
-            MagicMock(returncode=0, stdout="true", text=True),
-            # Second call: actual command execution
-            MagicMock(returncode=0, stdout="command output", stderr="", text=True)
-        ]
+        container_connection.is_connected = Mock(return_value=True)
+        # Mock the actual command execution
+        mock_run.return_value = MagicMock(returncode=0, stdout="command output", stderr="", text=True)
         
         stdout, stderr, code = container_connection.execute_command("ls -la")
         
@@ -77,7 +73,7 @@ class TestContainerConnection:
         exec_call_args = mock_run.call_args[0][0]
         assert exec_call_args == ["docker", "exec", "test-container", "/bin/bash", "-c", "ls -la"]
     
-    @patch('subprocess.run')
+    @patch('pod.os_abstraction.container.subprocess.run')
     def test_upload_file(self, mock_run, container_connection):
         """Test file upload to container"""
         mock_run.return_value = MagicMock(returncode=0)
@@ -101,7 +97,7 @@ class TestContainerHandler:
     @pytest.fixture
     def mock_container_connection(self):
         """Create a mock container connection"""
-        mock = Mock(spec=ContainerConnection)
+        mock = Mock(spec=DockerConnection)
         mock.execute_command.return_value = ("", "", 0)
         mock.upload_file.return_value = True
         mock.download_file.return_value = True
@@ -191,7 +187,7 @@ class TestContainerHandler:
         # Should add to bridge
         assert any("brctl addif br0 veth0" in cmd for cmd in commands)
     
-    @patch('subprocess.run')
+    @patch('pod.os_abstraction.container.subprocess.run')
     def test_get_container_info(self, mock_run, container_handler, mock_container_connection):
         """Test getting container information"""
         mock_container_connection.container_id = "test-container"

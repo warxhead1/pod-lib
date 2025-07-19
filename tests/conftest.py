@@ -7,6 +7,8 @@ from . import legacy_mocks
 
 import pytest
 import paramiko
+import docker
+import time
 from unittest.mock import Mock, MagicMock, patch
 from pyVmomi import vim, vmodl
 from pod.connections.ssh import SSHConnection
@@ -17,6 +19,7 @@ from pod.infrastructure.vsphere.network_config import NetworkConfigurator
 from pod.os_abstraction.base import NetworkInterface, NetworkConfig, CommandResult
 from pod.os_abstraction.linux import LinuxHandler
 
+# Mocks for Unit Tests
 
 @pytest.fixture
 def mock_vsphere_service_instance():
@@ -27,7 +30,7 @@ def mock_vsphere_service_instance():
 
 @pytest.fixture
 def mock_vsphere_client():
-    """Mock vSphere client"""
+    """Mock vSphere client for unit tests"""
     client = Mock(spec=VSphereClient)
     client.host = "vcenter.example.com"
     client.username = "admin@vsphere.local"
@@ -46,6 +49,70 @@ def mock_vsphere_client():
     
     return client
 
+# VCSim Fixtures for Integration Tests
+
+@pytest.fixture(scope="session")
+def vcsim_instance():
+    """
+    Starts a vcsim container for the test session.
+    Yields connection details to the simulator.
+    """
+    try:
+        client = docker.from_env()
+        # Check if docker is running
+        client.ping()
+    except Exception:
+        pytest.skip("Docker not running, skipping integration tests.")
+
+    container = client.containers.run(
+        "vmware/vcsim:latest",
+        detach=True,
+        auto_remove=True,
+        ports={'8989/tcp': None} # Let Docker assign a random available port
+    )
+    
+    # Wait for the container to be ready and get the assigned port
+    for _ in range(10):
+        container.reload()
+        if container.status == 'running' and container.ports.get('8989/tcp'):
+            break
+        time.sleep(1)
+    else:
+        container.remove(force=True)
+        raise Exception("vcsim container failed to start")
+
+    host_port = container.ports['8989/tcp'][0]['HostPort']
+
+    # Give the simulator a moment to initialize
+    time.sleep(5)
+
+    yield {
+        "host": "127.0.0.1",
+        "port": int(host_port),
+        "username": "user",
+        "password": "password",
+    }
+    
+    container.stop()
+
+@pytest.fixture
+def vsphere_client_integration(vcsim_instance):
+    """
+    Provides a real, connected VSphereClient to a vcsim instance for integration tests.
+    """
+    client = VSphereClient(
+        host=vcsim_instance["host"],
+        username=vcsim_instance["username"],
+        password=vcsim_instance["password"],
+        port=vcsim_instance["port"],
+        disable_ssl_verification=True
+    )
+    client.connect()
+    yield client
+    client.disconnect()
+
+
+# Other Fixtures
 
 @pytest.fixture
 def mock_vm():
@@ -73,7 +140,6 @@ def mock_network():
     network = create_mock_network("test-network")
     network.key = "network-key-123"
     return network
-
 
 @pytest.fixture
 def mock_dvs_portgroup():
@@ -128,7 +194,7 @@ def mock_ssh_connection():
     # Mock methods
     connection.connect = Mock()
     connection.disconnect = Mock()
-    connection.execute_command = Mock()
+    connection.execute_command = Mock(return_value=("", "", 0))
     connection.upload_file = Mock(return_value=True)
     connection.download_file = Mock(return_value=True)
     connection.is_connected = Mock(return_value=True)

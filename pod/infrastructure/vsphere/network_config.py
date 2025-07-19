@@ -5,13 +5,14 @@ Network configuration for vSphere VMs
 from typing import Optional, List, Dict, Any
 from pyVmomi import vim
 from .client import VSphereClient
+from .interfaces import VSphereClientProtocol
 from ...exceptions import NetworkConfigError
 
 
 class NetworkConfigurator:
     """Configure VM network adapters and VLANs"""
     
-    def __init__(self, vsphere_client: VSphereClient):
+    def __init__(self, vsphere_client: VSphereClientProtocol):
         self.client = vsphere_client
         
     def configure_vlan(self, vm_name: str, adapter_label: str, vlan_id: int, 

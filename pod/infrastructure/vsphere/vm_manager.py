@@ -6,13 +6,14 @@ import time
 from typing import Dict, Any, Optional, List
 from pyVmomi import vim
 from .client import VSphereClient
+from .interfaces import VSphereClientProtocol
 from ...exceptions import VMNotFoundError, OSError
 
 
 class VMManager:
     """Manages VM lifecycle operations"""
     
-    def __init__(self, vsphere_client: VSphereClient):
+    def __init__(self, vsphere_client: VSphereClientProtocol):
         self.client = vsphere_client
         
     def get_vm_info(self, vm_name: str) -> Dict[str, Any]:
@@ -168,6 +169,28 @@ class VMManager:
         self.client.wait_for_task(task)
         return True
     
+    def create_vm_from_spec(self, vm_name: str, guest_id: str = "otherGuest64",
+                              datacenter_name: Optional[str] = None,
+                              resource_pool_name: Optional[str] = None,
+                              datastore_name: Optional[str] = None) -> vim.VirtualMachine:
+        """Create a new VM from a specification"""
+        datacenter = self.client.get_datacenter(datacenter_name)
+        resource_pool = self.client.get_obj([vim.ResourcePool], resource_pool_name) if resource_pool_name else self._get_default_resource_pool(datacenter)
+        datastore = self.client.get_obj([vim.Datastore], datastore_name) if datastore_name else self._get_default_datastore(datacenter)
+
+        vm_config = vim.vm.ConfigSpec(
+            name=vm_name,
+            guestId=guest_id,
+            files=vim.vm.FileInfo(vmPathName=f"[{datastore.name}] {vm_name}/{vm_name}.vmx"),
+            numCPUs=1,
+            memoryMB=1024,
+            deviceChange=[]
+        )
+
+        task = datacenter.vmFolder.CreateVM_Task(config=vm_config, pool=resource_pool)
+        self.client.wait_for_task(task)
+        return self.client.get_vm(vm_name)
+
     def _detect_os_type(self, vm: vim.VirtualMachine) -> str:
         """Detect OS type from VM"""
         guest_id = vm.config.guestId.lower()
@@ -260,3 +283,9 @@ class VMManager:
                 return child.resourcePool
                 
         raise VMNotFoundError("No resource pool found")
+
+    def _get_default_datastore(self, datacenter: vim.Datacenter) -> vim.Datastore:
+        """Get default datastore"""
+        for datastore in datacenter.datastore:
+            return datastore
+        raise VMNotFoundError("No datastore found")

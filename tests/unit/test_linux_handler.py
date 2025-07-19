@@ -197,7 +197,7 @@ class TestLinuxHandler:
         arch_result = CommandResult("x86_64", "", 0, True, "uname -m", 0.1)
         hostname_result = CommandResult("test-vm", "", 0, True, "hostname", 0.1)
         
-        with patch.object(handler, 'execute_command', side_effect=[os_release_result, kernel_result, arch_result, hostname_result]):
+        with patch.object(handler, 'execute_command', side_effect=[os_release_result, hostname_result, arch_result, kernel_result]):
             result = handler.get_os_info()
         
         assert result['type'] == 'linux'

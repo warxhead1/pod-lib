@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from .base import BaseOSHandler, CommandResult, NetworkInterface, NetworkConfig
 from .linux import LinuxHandler
 from ..connections.base import BaseConnection
+from ..connections.container import DockerConnection
 
 
 class ContainerConnection(BaseConnection):
@@ -81,8 +82,17 @@ class ContainerConnection(BaseConnection):
         if not self.is_connected():
             raise ConnectionError("Not connected to container")
             
+        # Detect available shell - try bash first, fallback to sh
+        shell = "/bin/sh"  # Default to sh which is available in most containers
+        for test_shell in ["/bin/bash", "/bin/sh"]:
+            test_cmd = [self.command_prefix, "exec", self.container_id, "test", "-f", test_shell]
+            result = subprocess.run(test_cmd, capture_output=True, text=True)  # nosec B603
+            if result.returncode == 0:
+                shell = test_shell
+                break
+        
         # Build docker/podman exec command
-        exec_cmd = [self.command_prefix, "exec", self.container_id, "/bin/bash", "-c", command]
+        exec_cmd = [self.command_prefix, "exec", self.container_id, shell, "-c", command]
         
         try:
             result = subprocess.run(  # nosec B603
@@ -127,6 +137,26 @@ class ContainerHandler(LinuxHandler):
         super().__init__(connection)
         self.host_bridge = host_bridge or "br0"
         self._container_info = None
+        
+    def execute_command(self, command: str, timeout: int = 30, 
+                       as_admin: bool = False) -> CommandResult:
+        """Execute command in container - containers typically run as root so sudo not needed"""
+        start_time = time.time()
+        
+        # Don't add sudo for containers - they typically run as root
+        # and often don't have sudo installed
+        stdout, stderr, exit_code = self.connection.execute_command(command, timeout=timeout)
+            
+        duration = time.time() - start_time
+        
+        return CommandResult(
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=exit_code,
+            success=exit_code == 0,
+            command=command,
+            duration=duration
+        )
         
     def configure_network(self, config: NetworkConfig) -> CommandResult:
         """
@@ -206,6 +236,7 @@ class ContainerHandler(LinuxHandler):
         # Detect package manager
         pkg_managers = [
             ('apt-get', 'apt-get update && apt-get install -y'),  # Debian, Ubuntu
+            ('apk', 'apk add --no-cache'),      # Alpine
             ('dnf', 'dnf install -y'),      # Fedora, RHEL 8+, Rocky 9
             ('yum', 'yum install -y'),      # RHEL 7, CentOS
             ('zypper', 'zypper install -y'),    # openSUSE
@@ -291,7 +322,7 @@ class ContainerHandler(LinuxHandler):
             'networks': []
         }
         
-        if isinstance(self.connection, ContainerConnection):
+        if isinstance(self.connection, DockerConnection):
             # Get container info from host
             cmd = [self.connection.command_prefix, "inspect", self.connection.container_id]
             result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603
@@ -333,6 +364,7 @@ class ContainerHandler(LinuxHandler):
         info['container'] = True
         info['container_id'] = container_info['container_id']
         info['container_image'] = container_info['image']
+        info['type'] = 'linux' # Containers are typically Linux-based
         
         return info
         

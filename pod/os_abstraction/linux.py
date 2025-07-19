@@ -122,45 +122,41 @@ class LinuxHandler(BaseOSHandler):
         return self.execute_command("ifdown -a && ifup -a", as_admin=True)
     
     def get_os_info(self) -> Dict[str, Any]:
-        """Get OS information"""
+        """Get detailed OS information"""
         if self._os_info:
             return self._os_info
-            
-        info = {
-            'type': 'linux',
-            'distribution': 'unknown',
-            'version': 'unknown',
-            'kernel': 'unknown',
-            'architecture': 'unknown',
-            'hostname': 'unknown'
-        }
-        
-        # Get distribution info
+
         result = self.execute_command("cat /etc/os-release")
-        if result.success:
-            for line in result.stdout.split('\n'):
-                if line.startswith('NAME='):
-                    info['distribution'] = line.split('=')[1].strip('"')
-                elif line.startswith('VERSION='):
-                    info['version'] = line.split('=')[1].strip('"')
-                    
-        # Get kernel version
-        result = self.execute_command("uname -r")
-        if result.success:
-            info['kernel'] = result.stdout.strip()
-            
-        # Get architecture
-        result = self.execute_command("uname -m")
-        if result.success:
-            info['architecture'] = result.stdout.strip()
-            
+        if not result.success:
+            return {"error": "Could not read /etc/os-release"}
+
+        os_info = {"raw": result.stdout, "type": "linux"}
+        for line in result.stdout.strip().split('\n'):
+            if '=' in line:
+                key, value = line.split('=', 1)
+                os_info[key.lower()] = value.strip('"')
+        
+        # Add 'distribution' key for compatibility with some tests
+        if 'name' in os_info:
+            os_info['distribution'] = os_info['name']
+
         # Get hostname
-        result = self.execute_command("hostname")
-        if result.success:
-            info['hostname'] = result.stdout.strip()
-            
-        self._os_info = info
-        return info
+        hostname_result = self.execute_command("hostname")
+        if hostname_result.success:
+            os_info['hostname'] = hostname_result.stdout.strip()
+
+        # Get architecture
+        arch_result = self.execute_command("uname -m")
+        if arch_result.success:
+            os_info['architecture'] = arch_result.stdout.strip()
+
+        # Get kernel version
+        kernel_result = self.execute_command("uname -r")
+        if kernel_result.success:
+            os_info['kernel'] = kernel_result.stdout.strip()
+
+        self._os_info = os_info
+        return os_info
     
     def install_package(self, package_name: str) -> CommandResult:
         """Install a package using the appropriate package manager"""

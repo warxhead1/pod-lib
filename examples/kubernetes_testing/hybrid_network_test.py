@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from pod.client import PODClient
 from pod.infrastructure.vsphere.client import VSphereClient
 from pod.infrastructure.kubernetes.provider import KubernetesProvider
-from pod.connections.container import ContainerConnection
+from pod.connections.container import DockerConnection
 from pod.os_abstraction.container import ContainerHandler
 from pod.network.cni import CNIConfig
 from pod.os_abstraction.base import NetworkConfig

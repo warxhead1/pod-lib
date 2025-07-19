@@ -8,9 +8,10 @@ from typing import Optional, Dict, Any, List
 from pyVim import connect
 from pyVmomi import vim, vmodl
 from ...exceptions import ConnectionError, VMNotFoundError, AuthenticationError
+from .interfaces import VSphereClientProtocol
 
 
-class VSphereClient:
+class VSphereClient(VSphereClientProtocol):
     """vSphere API client for VM operations"""
     
     def __init__(self, host: str, username: str, password: str, port: int = 443, 

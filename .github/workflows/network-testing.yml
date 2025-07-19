@@ -207,7 +207,7 @@ jobs:
           sudo modprobe 8021q
           python -m pip install --upgrade pip
           pip install -e .
-          pip install pytest pytest-cov
+          pip install -r requirements-test.txt
           
       - name: Run integration tests
         run: |
